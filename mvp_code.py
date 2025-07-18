@@ -1,14 +1,18 @@
 import geopandas as gpd
+import pandas as pd
 import numpy as np
 import xml.etree.ElementTree as ET
+import json
 
 from shapely.geometry import Point
 from pathlib import Path
 from geopy.distance import geodesic
 from typing import List, Tuple, Optional
+from datetime import datetime
 
-KML_PATH = "/Users/diegonaranjo/Documents/master/misw4408_design_thinking/mvp_design_thinking/20250716-220345 - Test.kml"
-TOTAL_TIME_SEC = 5*60+49
+METADATA_PATH = "/Users/diegonaranjo/Documents/master/misw4408_design_thinking/mvp_design_thinking/data/metadata.json"
+FOLDER_PATH = Path("/Users/diegonaranjo/Documents/master/misw4408_design_thinking/mvp_design_thinking/data")
+kml_files = list(FOLDER_PATH.glob("*.kml"))
 
 def extract_kml_coordinates(kml_path: str | Path) -> List[Tuple[float, float, Optional[float]]]:
     """
@@ -88,15 +92,47 @@ def velocity_column(df, total_time):
 
     return df
 
-def main():
-    coords = extract_kml_coordinates(KML_PATH)
-    print(f"Extracted {len(coords)} coordinate triples.")
+def get_metadata(metadata_path: str | Path) -> dict:
+    """
+    Reads metadata from a JSON file and returns it as a dictionary.
+    """
+    metadata_path = Path(metadata_path)
+    with open(metadata_path, 'r') as f:
+        return json.load(f)
 
-    df = coords_to_geodataframe(coords)
-    df = velocity_column(df, TOTAL_TIME_SEC)
-    print(df.head(10))
-    # print(coords[:5])
+def main():
+
+    metadata = get_metadata(METADATA_PATH)
+    combined_df = pd.DataFrame()
+
+    for file in kml_files:
+
+        file_id = file.stem.split('- ')[-1]
+        date_str = file.stem.split('-')[0]
+        date_obj = datetime.strptime(date_str, "%Y%m%d").date()
+        coords = extract_kml_coordinates(file)
+        print(f"Extracted {len(coords)} coordinate triples.")
+
+        time = next((item['time'] for item in metadata['time'] if item['file'] == file_id), None)
+        print(time)
+
+        df = coords_to_geodataframe(coords)
+        df['file_id'] = file_id 
+        df['date'] = date_obj
+        df = velocity_column(df, int(time))
+        combined_df = pd.concat([combined_df, df], ignore_index=True)
+        df.to_csv(f"./results/mvp_output_{file_id}.csv", index=False)
+        # print(df.head(10))
+        # print(coords[:5])
+
+    print(combined_df.head(10))
+    combined_df.to_csv("./results/mvp_output_combined.csv", index=False)
 
 if __name__ == "__main__":
 
     main()
+
+
+
+
+
