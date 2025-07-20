@@ -126,7 +126,7 @@ def main():
         # print(coords[:5])
 
     print(combined_df.head(10))
-    combined_df.to_csv("./results/mvp_output_combined.csv", index=False)
+    combined_df.to_csv("./results/report_df/mvp_output_combined.csv", index=False)
 
 if __name__ == "__main__":
 
